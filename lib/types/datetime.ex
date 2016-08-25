@@ -112,6 +112,7 @@ defmodule Timex.Ecto.DateTime do
   Load from the native Ecto representation
   """
   def load({{y, m, d}, {h, mm, s, usec}}) do
+    tz = Timex.Timezone.local
     dt = %DateTime{
       :year => y,
       :month => m,
@@ -120,10 +121,10 @@ defmodule Timex.Ecto.DateTime do
       :minute => mm,
       :second => s,
       :microsecond => Timex.DateTime.Helpers.construct_microseconds(usec),
-      :time_zone => "Etc/UTC",
-      :zone_abbr => "UTC",
-      :utc_offset => 0,
-      :std_offset => 0
+      :time_zone => tz.full_name,
+      :zone_abbr => tz.abbreviation,
+      :utc_offset => tz.offset_utc,
+      :std_offset => tz.offset_std
     }
     {:ok, dt}
   end
@@ -132,9 +133,11 @@ defmodule Timex.Ecto.DateTime do
   @doc """
   Convert to native Ecto representation
   """
+
   def dump(%DateTime{} = datetime) do
-    case Timex.Timezone.convert(datetime, "Etc/UTC") do
+    case Timex.Timezone.convert(datetime, Timex.Timezone.local) do
       %DateTime{} = dt ->
+        dt = %{dt | time_zone: nil} # this is where the magic happens
         case Timex.to_naive_datetime(dt) do
           %NaiveDateTime{} = n ->
             {us, _} = n.microsecond
